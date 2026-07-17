@@ -13,5 +13,21 @@
     "/": 2000,
     "/shipments": 2500,
     "/consolidations": 2500
+  },
+  "networkProbes": {
+    "enabled": true,
+    "scenarios": ["401", "404", "500", "timeout"],
+    "probes": [
+      {
+        "name": "shipments-api",
+        "urlPattern": "**/api/**",
+        "expectAppLogging": true,
+        "logPatterns": ["401", "404", "500", "timeout", "network", "fetch", "error"],
+        "trigger": {
+          "type": "goto",
+          "route": "/v2/cr3/shipments"
+        }
+      }
+    ]
   }
 }

@@ -1,0 +1,47 @@
+{
+  "baseUrl": "http://127.0.0.1:4173",
+  "outputDir": "./artifacts/latest",
+  "viewports": [
+    { "name": "desktop", "width": 1440, "height": 900 },
+    { "name": "mobile", "width": 390, "height": 844 }
+  ],
+  "routes": ["/", "/slow.html", "/login-loop.html", "/missing.html", "/network-probe.html"],
+  "journeys": [
+    {
+      "name": "broken-submit-flow",
+      "steps": [
+        { "action": "goto", "route": "/" },
+        {
+          "action": "fill",
+          "selector": "#email",
+          "value": "tester@example.com"
+        },
+        { "action": "click", "selector": "#submit-btn" },
+        { "action": "waitFor", "milliseconds": 800 }
+      ]
+    }
+  ],
+  "performanceThresholdPercent": 20,
+  "performanceBaselinesMs": {
+    "/": 900,
+    "/slow.html": 1000,
+    "/login-loop.html": 500
+  },
+  "networkProbes": {
+    "enabled": true,
+    "scenarios": ["401", "404", "500", "timeout"],
+    "probes": [
+      {
+        "name": "seeded-api-probe",
+        "urlPattern": "**/api/probe",
+        "expectAppLogging": true,
+        "trigger": {
+          "type": "fetch",
+          "route": "/network-probe.html",
+          "url": "/api/probe",
+          "method": "GET"
+        }
+      }
+    ]
+  }
+}

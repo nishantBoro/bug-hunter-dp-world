@@ -1,0 +1,111 @@
+{
+  "app": "cds-declaration",
+  "baseUrl": "http://localhost:4222/cds-ui/",
+  "outputDir": "./artifacts/cds-declaration",
+  "defaultEnvironment": "local",
+  "environments": {
+    "local": {
+      "baseUrl": "http://localhost:4222/cds-ui/",
+      "outputDir": "./artifacts/cds-declaration/local",
+      "storageStatePath": "./auth/cds-declaration-local.json"
+    },
+    "live": {
+      "baseUrl": "https://eudev-community.cargoes.com/cds-ui/",
+      "outputDir": "./artifacts/cds-declaration/live",
+      "storageStatePath": "./auth/cds-declaration-live.json",
+      "postLoginUrlPattern": "**/cds-ui/**"
+    }
+  },
+  "viewports": [{ "name": "desktop", "width": 1440, "height": 800 }],
+  "routes": [
+    "/#/cds-declaration;submittedEndDate=:submittedEndDate;myDeclarations=:myDeclarations;advancedSearch=:advancedSearch;isView=:isView?location=:location",
+    "/#/cds-declaration/bulk-upload-report",
+    "/#/update-form/:action/:id",
+    "/#/view-declaration/:id",
+    "/#/view-declaration/:action/:id",
+    "/#/mucr-processing",
+    "/#/mucr-processing/query",
+    "/#/user-reporting",
+    "/#/query-declaration",
+    "/#/air-courier",
+    "/#/aca-cargo-report",
+    "/#/ccsuk",
+    "/#/ccsuk/query",
+    "/#/ccsuk/error",
+    "/#/ccsuk/good-location",
+    "/#/smart-template",
+    "/#/smart-template/create/:action/:id",
+    "/#/smart-template/view/:id"
+  ],
+  "routeParams": {
+    "location": "CDMSGB1",
+    "locationLabel": "GB Border Locations",
+    "submittedEndDate": "Wed Jul 15 2026 11:20:50 GMT+0530",
+    "myDeclarations": "true",
+    "advancedSearch": "false",
+    "isView": "false",
+    "action": "edit",
+    "id": "9162"
+  },
+  "auth": {
+    "enabled": true,
+    "entryRoute": "/#/cds-declaration;submittedEndDate=:submittedEndDate;myDeclarations=:myDeclarations;advancedSearch=:advancedSearch;isView=:isView?location=:location",
+    "usernameEnv": "BUG_HUNTER_USERNAME",
+    "passwordEnv": "BUG_HUNTER_PASSWORD",
+    "selectors": {
+      "username": "#username",
+      "password": "#password",
+      "submit": "input[type=\"submit\"]"
+    },
+    "postLoginUrlPattern": "**/cds-ui/**",
+    "postLoginWaitMs": 5000,
+    "navigationWaitUntil": "load",
+    "saveStorageStateAfterLogin": true,
+    "locationSelection": {
+      "enabled": true,
+      "waitForSelector": "text=Select Location",
+      "selectSelector": "mat-select",
+      "optionSelector": "mat-option",
+      "optionTextFromRouteParam": "locationLabel",
+      "confirmSelector": "button:has-text(\"Confirm\")",
+      "postConfirmWaitMs": 5000,
+      "postConfirmUrlPattern": "**/cds-ui/**"
+    }
+  },
+  "journeys": [],
+  "performanceThresholdPercent": 20,
+  "performanceBaselinesMs": {
+    "/#/cds-declaration;submittedEndDate=:submittedEndDate;myDeclarations=:myDeclarations;advancedSearch=:advancedSearch;isView=:isView?location=:location": 15000
+  },
+  "navigationWaitUntil": "load",
+  "browser": {
+    "headless": true,
+    "channel": "chrome",
+    "navigationTimeoutMs": 90000,
+    "postLoadWaitMs": 8000
+  },
+  "networkIgnorePatterns": [
+    "**/googletagmanager.com/**",
+    "**/google-analytics.com/**",
+    "**/google.com/ccm/**",
+    "**/clarity.ms/**",
+    "**/hotjar.com/**",
+    "**/fontawesome.com/**",
+    "**/fonts.googleapis.com/**",
+    "**/fonts.gstatic.com/**",
+    "**/images/global/**"
+  ],
+  "networkIncludePatterns": [
+    "**/cds/api/**",
+    "**/customs-engine/api/**",
+    "**/notification-api/**",
+    "**/clientnew/**",
+    "**/openid-connect/**"
+  ],
+  "networkSettleMs": 10000,
+  "networkProbes": {
+    "enabled": false,
+    "scenarios": ["401", "404", "500", "timeout"],
+    "probes": []
+  }
+}

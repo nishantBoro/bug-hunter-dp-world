@@ -1,6 +1,6 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { Finding, RouteTelemetry, RunArtifacts } from "./types.js";
+import { Finding, NetworkProbeScenarioResult, RouteTelemetry, RunArtifacts } from "./types.js";
 
 function findingSection(finding: Finding): string {
   const lines = [
@@ -95,6 +95,16 @@ function buildDashboardHtml(artifacts: RunArtifacts): string {
     </div>
 
     <div class="panel table">
+      <h3>Network Probes</h3>
+      <table>
+        <thead>
+          <tr><th>Probe</th><th>Scenario</th><th>Scanner</th><th>App Logged</th><th>Passed</th></tr>
+        </thead>
+        <tbody id="networkProbeRows"></tbody>
+      </table>
+    </div>
+
+    <div class="panel table">
       <h3>Route Telemetry</h3>
       <table>
         <thead>
@@ -108,6 +118,7 @@ function buildDashboardHtml(artifacts: RunArtifacts): string {
     const artifacts = ${serialized};
     const findings = artifacts.findings || [];
     const telemetry = artifacts.telemetry || [];
+    const networkProbeResults = artifacts.networkProbeResults || [];
 
     const state = { severity: "all", category: "all", route: "all", query: "", selectedId: "" };
     const severityEl = document.getElementById("severity");
@@ -118,6 +129,7 @@ function buildDashboardHtml(artifacts: RunArtifacts): string {
     const detailsEl = document.getElementById("details");
     const summaryEl = document.getElementById("summaryCards");
     const telemetryRowsEl = document.getElementById("telemetryRows");
+    const networkProbeRowsEl = document.getElementById("networkProbeRows");
 
     function unique(values) { return [...new Set(values)].filter(Boolean).sort(); }
     function optionMarkup(value, label) { return '<option value="' + value + '">' + label + '</option>'; }
@@ -209,6 +221,16 @@ function buildDashboardHtml(artifacts: RunArtifacts): string {
       }).join("");
     }
 
+    function renderNetworkProbes() {
+      if (!networkProbeResults.length) {
+        networkProbeRowsEl.innerHTML = "<tr><td colspan='5' class='muted'>No network probes configured for this run.</td></tr>";
+        return;
+      }
+      networkProbeRowsEl.innerHTML = networkProbeResults.map((probe) => {
+        return "<tr><td>" + probe.probeName + "</td><td>" + probe.scenario + "</td><td>" + (probe.scannerDetected ? "yes" : "no") + "</td><td>" + (probe.appLogged ? "yes" : "no") + "</td><td>" + (probe.passed ? "yes" : "no") + "</td></tr>";
+      }).join("");
+    }
+
     severityEl.addEventListener("change", () => { state.severity = severityEl.value; renderList(); });
     categoryEl.addEventListener("change", () => { state.category = categoryEl.value; renderList(); });
     routeEl.addEventListener("change", () => { state.route = routeEl.value; renderList(); });
@@ -218,6 +240,7 @@ function buildDashboardHtml(artifacts: RunArtifacts): string {
     summaryCards();
     renderList();
     renderTelemetry();
+    renderNetworkProbes();
   </script>
 </body>
 </html>`;
@@ -226,11 +249,12 @@ function buildDashboardHtml(artifacts: RunArtifacts): string {
 export async function writeRunArtifacts(
   outputDir: string,
   findings: Finding[],
-  telemetry: RouteTelemetry[]
+  telemetry: RouteTelemetry[],
+  networkProbeResults: NetworkProbeScenarioResult[] = []
 ): Promise<void> {
   await mkdir(outputDir, { recursive: true });
 
-  const artifacts: RunArtifacts = { findings, telemetry };
+  const artifacts: RunArtifacts = { findings, telemetry, networkProbeResults };
   await writeFile(
     path.join(outputDir, "run.json"),
     JSON.stringify(artifacts, null, 2),
@@ -252,7 +276,16 @@ export async function writeRunArtifacts(
     ...telemetry.map(
       (t) =>
         `- ${t.route} (${t.viewport}): ${t.durationMs}ms | console=${t.consoleErrors.length} | network=${t.networkFailures.length + t.httpFailures.length}`
-    )
+    ),
+    "",
+    "## Network probes",
+    "",
+    ...(networkProbeResults.length
+      ? networkProbeResults.map(
+          (probe) =>
+            `- ${probe.probeName} [${probe.scenario}]: scanner=${probe.scannerDetected ? "yes" : "no"} | appLogged=${probe.appLogged ? "yes" : "no"} | passed=${probe.passed ? "yes" : "no"}`
+        )
+      : ["No network probes configured for this run."])
   ].join("\n");
 
   await writeFile(path.join(outputDir, "report.md"), markdown, "utf-8");

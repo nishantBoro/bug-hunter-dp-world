@@ -1,0 +1,14 @@
+{
+  "cds-declaration": {
+    "configPath": "configs/cds-declaration.json",
+    "description": "CDS Declaration UI (local webpack or live community)"
+  },
+  "shipment": {
+    "configPath": "configs/shipment.json",
+    "description": "Shipment SPA fixture / local app"
+  },
+  "ui-tenant-declaration": {
+    "configPath": "configs/ui-tenant-declaration.json",
+    "description": "EU tenant declaration UI"
+  }
+}

@@ -16,8 +16,12 @@ export function resolveRoute(
   route: string,
   params: Record<string, string> = {}
 ): { url: string; unresolved: string[] } {
+  if (/^https?:\/\//i.test(route)) {
+    return { url: route, unresolved: [] };
+  }
+
   const unresolved: string[] = [];
-  const substituted = route.replace(/:([A-Za-z0-9_]+)/g, (match, name: string) => {
+  const substituted = route.replace(/:([A-Za-z][A-Za-z0-9_]*)/g, (match, name: string) => {
     const value = params[name];
     if (value === undefined) {
       unresolved.push(name);
@@ -31,6 +35,13 @@ export function resolveRoute(
   }
 
   const base = new URL(baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`);
+
+  if (substituted.includes("#")) {
+    const hashStart = substituted.indexOf("#");
+    base.hash = substituted.slice(hashStart);
+    return { url: base.toString(), unresolved };
+  }
+
   const routePath = substituted.startsWith("/") ? substituted : `/${substituted}`;
   const basePath = base.pathname.replace(/\/$/, "") || "";
   base.pathname = `${basePath}${routePath}`.replace(/\/{2,}/g, "/");

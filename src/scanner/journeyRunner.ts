@@ -1,5 +1,6 @@
 import { BugHunterConfig, Finding, JourneyStep, NavigationWaitUntil } from "../types.js";
-import { launchBrowser } from "./browser.js";
+import { BrowserSession } from "./browser.js";
+import { safeNavigationWaitUntil } from "./navigation.js";
 import { resolveRoute } from "./url.js";
 
 async function runStep(
@@ -12,7 +13,7 @@ async function runStep(
   switch (step.action) {
     case "goto":
       await page.goto(resolveRoute(baseUrl, step.route, params).url, {
-        waitUntil: navigationWaitUntil
+        waitUntil: safeNavigationWaitUntil(navigationWaitUntil)
       });
       return;
     case "click":
@@ -32,13 +33,15 @@ async function runStep(
   }
 }
 
-export async function runScriptedJourneys(config: BugHunterConfig): Promise<Finding[]> {
-  const browser = await launchBrowser();
-  const context = await browser.newContext();
+export async function runScriptedJourneys(
+  config: BugHunterConfig,
+  session: BrowserSession
+): Promise<Finding[]> {
+  const { context } = session;
+  context.setDefaultNavigationTimeout(config.browser.navigationTimeoutMs ?? 30_000);
   const findings: Finding[] = [];
 
-  try {
-    for (const journey of config.journeys) {
+  for (const journey of config.journeys) {
       const page = await context.newPage();
       try {
         for (const step of journey.steps) {
@@ -67,10 +70,6 @@ export async function runScriptedJourneys(config: BugHunterConfig): Promise<Find
         await page.close();
       }
     }
-  } finally {
-    await context.close();
-    await browser.close();
-  }
 
   return findings;
 }
