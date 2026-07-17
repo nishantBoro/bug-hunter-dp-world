@@ -2,7 +2,9 @@ import { mkdir } from "node:fs/promises";
 import path from "node:path";
 import { Page, ViewportSize } from "playwright";
 import { BugHunterConfig, RouteTelemetry } from "../types.js";
-import { launchBrowser } from "./browser.js";
+import { BrowserSession } from "./browser.js";
+import { dedupeNetworkEntries, shouldRecordNetworkEntry } from "./networkFilter.js";
+import { safeNavigationWaitUntil } from "./navigation.js";
 import { resolveRoute, routeSlug } from "./url.js";
 
 async function captureUiSignals(page: Page): Promise<RouteTelemetry["uiSignals"]> {
@@ -103,16 +105,19 @@ async function isBlankScreen(page: Page): Promise<boolean> {
 
 export async function scanRoutes(
   config: BugHunterConfig,
-  screenshotRoot: string
+  screenshotRoot: string,
+  session: BrowserSession
 ): Promise<RouteTelemetry[]> {
-  const browser = await launchBrowser();
-  const context = await browser.newContext();
-  context.setDefaultNavigationTimeout(12_000);
+  const { context } = session;
+  context.setDefaultNavigationTimeout(config.browser.navigationTimeoutMs ?? 30_000);
   const telemetry: RouteTelemetry[] = [];
+  const totalRoutes = config.routes.length * config.viewports.length;
+  let completed = 0;
 
-  try {
-    for (const viewport of config.viewports) {
+  for (const viewport of config.viewports) {
       for (const route of config.routes) {
+        completed += 1;
+        console.log(`[${completed}/${totalRoutes}] Scanning ${route} (${viewport.name})...`);
         // A fresh page per route guarantees telemetry isolation. Previously a
         // single page was reused across routes with listeners re-attached each
         // iteration, so errors/network failures from earlier routes leaked
@@ -134,13 +139,29 @@ export async function scanRoutes(
         });
         page.on("pageerror", (err) => pageErrors.push(err.message));
         page.on("requestfailed", (req) => {
-          networkFailures.push(
-            `${req.method()} ${req.url()} ${req.failure()?.errorText ?? "unknown"}`
-          );
+          const entry = `${req.method()} ${req.url()} ${req.failure()?.errorText ?? "unknown"}`;
+          if (
+            shouldRecordNetworkEntry(
+              entry,
+              config.networkIgnorePatterns,
+              config.networkIncludePatterns
+            )
+          ) {
+            networkFailures.push(entry);
+          }
         });
         page.on("response", (res) => {
           if (res.status() >= 400) {
-            httpFailures.push(`${res.status()} ${res.request().method()} ${res.url()}`);
+            const entry = `${res.status()} ${res.request().method()} ${res.url()}`;
+            if (
+              shouldRecordNetworkEntry(
+                entry,
+                config.networkIgnorePatterns,
+                config.networkIncludePatterns
+              )
+            ) {
+              httpFailures.push(entry);
+            }
           }
         });
         page.on("framenavigated", (frame) => {
@@ -162,7 +183,21 @@ export async function scanRoutes(
         }
 
         const start = Date.now();
-        await page.goto(targetUrl, { waitUntil: config.navigationWaitUntil });
+        await page.goto(targetUrl, {
+          waitUntil: safeNavigationWaitUntil(config.navigationWaitUntil),
+          timeout: config.browser.navigationTimeoutMs ?? 60_000
+        });
+        if (config.browser.postLoadWaitMs) {
+          await page.waitForTimeout(config.browser.postLoadWaitMs);
+        }
+
+        // Ignore transient auth/bootstrap failures during initial load.
+        if (config.networkSettleMs > 0) {
+          httpFailures.length = 0;
+          networkFailures.length = 0;
+          await page.waitForTimeout(config.networkSettleMs);
+        }
+
         const durationMs = Date.now() - start;
 
         const blankScreenDetected = await isBlankScreen(page);
@@ -187,20 +222,20 @@ export async function scanRoutes(
           durationMs,
           consoleErrors,
           pageErrors,
-          networkFailures,
-          httpFailures,
+          networkFailures: dedupeNetworkEntries(networkFailures),
+          httpFailures: dedupeNetworkEntries(httpFailures),
           redirectLoopDetected,
           blankScreenDetected,
           uiSignals
         });
 
         await page.close();
+        console.log(
+          `  done in ${(durationMs / 1000).toFixed(1)}s — ` +
+            `http:${httpFailures.length} network:${networkFailures.length} console:${consoleErrors.length}`
+        );
       }
     }
-  } finally {
-    await context.close();
-    await browser.close();
-  }
 
   return telemetry;
 }

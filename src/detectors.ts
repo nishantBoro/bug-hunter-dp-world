@@ -1,5 +1,6 @@
 import { BugHunterConfig, Finding, RouteTelemetry } from "./types.js";
 import { fingerprint } from "./fingerprint.js";
+import { summarizeHttpFailures } from "./scanner/networkFilter.js";
 
 function createFinding(
   base: Omit<Finding, "id" | "createdAt" | "viewport">,
@@ -47,22 +48,28 @@ export function detectFromTelemetry(
     }
 
     if (item.networkFailures.length || item.httpFailures.length) {
+      const statusSummary = summarizeHttpFailures(item.httpFailures);
+      const hasServerError = item.httpFailures.some((x) => /\b5\d{2}\b/.test(x));
+      const hasClientError = item.httpFailures.some((x) => /\b4\d{2}\b/.test(x));
+
       findings.push(
         createFinding(
           {
             title: "Network/API failures detected",
             category: "network",
-            severity: "high",
-            owner: item.httpFailures.some((x) => x.includes(" 5")) ? "backend" : "shared",
+            severity: hasServerError ? "critical" : hasClientError ? "high" : "high",
+            owner: hasServerError ? "backend" : "shared",
             route: item.route,
             reproSteps: [
               `Open ${item.route}`,
               "Inspect network panel",
               "Observe failed request(s)"
             ],
-            suspectedCause: "Broken endpoint, missing asset, timeout, or contract mismatch",
+            suspectedCause:
+              "API returned 4xx/5xx, gateway error (502/503/504), validation error (422), auth failure (401), or request timeout",
             evidence: {
-              networkExcerpt: [...item.networkFailures, ...item.httpFailures].slice(0, 10)
+              networkExcerpt: [...item.networkFailures, ...item.httpFailures].slice(0, 20),
+              details: statusSummary ? `Status breakdown: ${statusSummary}` : undefined
             }
           },
           item.viewport

@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Network Probe Fixture</title>
+  </head>
+  <body>
+    <h1>Network Probe Fixture</h1>
+    <p>This page triggers API calls used by Bug Hunter network probes.</p>
+    <button id="probe-btn" type="button">Trigger API probe</button>
+
+    <script>
+      async function callProbeApi() {
+        const endpoint = new URLSearchParams(window.location.search).get("endpoint") || "/api/probe";
+        try {
+          const response = await fetch(endpoint);
+          if (!response.ok) {
+            console.error(
+              "Network error logged by app:",
+              response.status,
+              response.statusText,
+              endpoint
+            );
+          }
+        } catch (error) {
+          console.error("Network timeout/error logged by app:", endpoint, error);
+        }
+      }
+
+      document.getElementById("probe-btn").addEventListener("click", () => {
+        void callProbeApi();
+      });
+
+      void callProbeApi();
+    </script>
+  </body>
+</html>

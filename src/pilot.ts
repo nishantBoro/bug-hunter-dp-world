@@ -61,11 +61,34 @@ async function main(): Promise<void> {
       ? (falsePositiveEstimate / result.findings.length) * 100
       : 0;
 
+    const artifactsPath = path.join(result.outputDir, "run.json");
+    const artifactsRaw = await readFile(artifactsPath, "utf-8");
+    const artifacts = JSON.parse(artifactsRaw) as {
+      networkProbeResults?: Array<{ scenario: string; scannerDetected: boolean; passed: boolean }>;
+    };
+    const probeResults = artifacts.networkProbeResults ?? [];
+    const expectedScenarios = ["401", "404", "500", "timeout"];
+    const scannerMisses = probeResults.filter((probe) => !probe.scannerDetected);
+    const probeFailures = probeResults.filter((probe) => !probe.passed);
+
     console.log("Pilot run complete.");
     console.log(`Output: ${result.outputDir}`);
     console.log(`Found categories: ${Array.from(foundCategories).join(", ")}`);
     console.log(`Missed categories: ${missed.length ? missed.join(", ") : "none"}`);
     console.log(`False-positive estimate: ${fpRate.toFixed(1)}%`);
+    console.log(
+      `Network probes: ${probeResults.length} scenario(s), scanner misses=${scannerMisses.length}, failures=${probeFailures.length}`
+    );
+    if (probeResults.length < expectedScenarios.length) {
+      console.warn("Tune recommendation: enable all network probe scenarios in config.");
+    }
+    if (scannerMisses.length) {
+      console.warn(
+        `Tune recommendation: scanner missed mocked scenarios: ${scannerMisses
+          .map((probe) => probe.scenario)
+          .join(", ")}`
+      );
+    }
     if (fpRate > 20) {
       console.warn("Tune recommendation: tighten low-severity UI thresholds.");
     }

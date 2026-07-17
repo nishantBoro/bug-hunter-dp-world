@@ -1,16 +1,17 @@
 import { runBugHunter } from "./run.js";
-
-function parseConfigPath(): string {
-  const configArgIdx = process.argv.findIndex((arg) => arg === "--config");
-  if (configArgIdx === -1 || !process.argv[configArgIdx + 1]) {
-    return "bughunter.config.json";
-  }
-  return process.argv[configArgIdx + 1];
-}
+import { parseCliOptions, printCliHelp, resolveRunTarget } from "./cli.js";
 
 async function main(): Promise<void> {
-  const configPath = parseConfigPath();
-  const result = await runBugHunter(configPath);
+  if (process.argv.includes("--help") || process.argv.includes("-h")) {
+    printCliHelp();
+    return;
+  }
+
+  const cli = parseCliOptions();
+  const result =
+    !cli.app && !cli.configPath
+      ? await runBugHunter("bughunter.config.json")
+      : await runBugHunter(await resolveRunTarget());
 
   const severityCounts = result.findings.reduce<Record<string, number>>((acc, finding) => {
     acc[finding.severity] = (acc[finding.severity] ?? 0) + 1;

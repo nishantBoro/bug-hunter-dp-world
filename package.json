@@ -9,9 +9,13 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "scan": "node scripts/check-node.mjs && tsx src/index.ts",
-    "scan:shipment": "node scripts/check-node.mjs && tsx src/index.ts -- --config configs/shipment.json",
-    "pilot": "node scripts/check-node.mjs && tsx src/pilot.ts",
+    "scan": "node scripts/check-node.mjs && npm run build && node dist/index.js",
+    "scan:shipment": "node scripts/check-node.mjs && npm run build && node dist/index.js -- --config configs/shipment.json",
+    "scan:cds-declaration": "node scripts/check-node.mjs && npm run build && node dist/index.js -- --app cds-declaration --env local",
+    "hunt": "node scripts/check-node.mjs && npm run build && node dist/index.js",
+    "setup:auth": "node scripts/check-node.mjs && npm run build && node dist/setupAuth.js",
+    "export-auth": "node scripts/export-storage-state.mjs",
+    "pilot": "node scripts/check-node.mjs && npm run build && node dist/pilot.js",
     "lint": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
@@ -19,7 +23,6 @@
   },
   "devDependencies": {
     "@types/node": "^24.0.1",
-    "tsx": "^4.20.3",
     "typescript": "^5.8.3"
   }
 }
