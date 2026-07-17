@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Login Loop</title>
+  </head>
+  <body>
+    <h1>Login Loop Route</h1>
+    <script>
+      const loops = Number(sessionStorage.getItem("loops") || 0);
+      if (loops < 3) {
+        sessionStorage.setItem("loops", String(loops + 1));
+        location.href = "/login-loop.html";
+      }
+    </script>
+  </body>
+</html>

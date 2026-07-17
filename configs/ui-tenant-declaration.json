@@ -1,0 +1,28 @@
+{
+  "baseUrl": "https://euuat-community.cargoes.com/eu-ui/#/declaration",
+  "outputDir": "./artifacts/ui-tenant-declaration",
+  "viewports": [
+    { "name": "desktop", "width": 1440, "height": 900 },
+    { "name": "mobile", "width": 390, "height": 844 }
+  ],
+  "routes": [
+    "/",
+    "/eu-ui",
+    "/eu-ui/#//user-reporting",
+    "/eu-ui/#/update-form/:action/:id",
+    "/eu-ui/#/view-declaration/:id"
+  ],
+  "routeParams": {
+    "action": "edit",
+    "id": "REPLACE_WITH_REAL_DECLARATION_ID"
+  },
+  "journeys": [],
+  "performanceThresholdPercent": 20,
+  "performanceBaselinesMs": {
+    "/": 2000,
+    "/eu-declaration": 2500,
+    "/user-reporting": 2500,
+    "/update-form/:action/:id": 2500,
+    "/view-declaration/:id": 2500
+  }
+}

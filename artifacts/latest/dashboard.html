@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bug Hunter Dashboard</title>
+  <style>
+    :root { color-scheme: light dark; }
+    body { font-family: Inter, Arial, sans-serif; margin: 0; background: #111827; color: #e5e7eb; }
+    .container { max-width: 1240px; margin: 0 auto; padding: 20px; }
+    h1, h2, h3 { margin: 0 0 12px 0; }
+    .muted { color: #93a3b8; }
+    .cards { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); margin: 16px 0; }
+    .card { background: #1f2937; border: 1px solid #334155; border-radius: 10px; padding: 12px; }
+    .controls { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); margin: 20px 0; }
+    select, input { width: 100%; border-radius: 8px; border: 1px solid #475569; background: #0f172a; color: #e2e8f0; padding: 8px 10px; }
+    .layout { display: grid; gap: 16px; grid-template-columns: 1.2fr 1fr; }
+    @media (max-width: 960px) { .layout { grid-template-columns: 1fr; } }
+    .list { display: grid; gap: 10px; }
+    .item { background: #1f2937; border: 1px solid #334155; border-radius: 10px; padding: 12px; cursor: pointer; }
+    .item.active { border-color: #60a5fa; box-shadow: 0 0 0 1px #60a5fa inset; }
+    .badge { display: inline-block; border-radius: 999px; padding: 2px 8px; font-size: 12px; font-weight: 700; }
+    .critical { background: #7f1d1d; color: #fecaca; }
+    .high { background: #7c2d12; color: #fed7aa; }
+    .medium { background: #78350f; color: #fde68a; }
+    .low { background: #14532d; color: #bbf7d0; }
+    .panel { background: #111827; border: 1px solid #334155; border-radius: 10px; padding: 14px; }
+    .kv { margin: 6px 0; }
+    img { max-width: 100%; border-radius: 8px; border: 1px solid #334155; }
+    ul { margin: 6px 0 0 18px; padding: 0; }
+    .table { overflow: auto; margin-top: 20px; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { border-bottom: 1px solid #334155; text-align: left; padding: 8px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Bug Hunter Dashboard</h1>
+    <p class="muted">Interactive findings triage for the latest scan run.</p>
+    <div class="cards" id="summaryCards"></div>
+
+    <div class="controls">
+      <div><label for="severity">Severity</label><select id="severity"></select></div>
+      <div><label for="category">Category</label><select id="category"></select></div>
+      <div><label for="route">Route</label><select id="route"></select></div>
+      <div><label for="search">Search</label><input id="search" placeholder="Title, cause, evidence..." /></div>
+    </div>
+
+    <div class="layout">
+      <div class="panel">
+        <h2>Findings</h2>
+        <div id="findingsList" class="list"></div>
+      </div>
+      <div class="panel">
+        <h2>Details</h2>
+        <div id="details">Select a finding to inspect evidence.</div>
+      </div>
+    </div>
+
+    <div class="panel table">
+      <h3>Route Telemetry</h3>
+      <table>
+        <thead>
+          <tr><th>Route</th><th>Viewport</th><th>Duration (ms)</th><th>Console Errors</th><th>Network Fails</th></tr>
+        </thead>
+        <tbody id="telemetryRows"></tbody>
+      </table>
+    </div>
+  </div>
+  <script>
+    const artifacts = {"findings":[{"title":"Runtime errors detected in browser console","category":"runtime","severity":"high","owner":"frontend","route":"/","reproSteps":["Open / on viewport desktop","Open browser devtools console","Observe uncaught errors/rejections"],"suspectedCause":"Unhandled exception or rejected promise in route script","evidence":{"consoleExcerpt":["Seeded runtime error from homepage.","Failed to load resource: the server responded with a status of 500 (Internal Server Error)","Failed to load resource: the server responded with a status of 404 (Not Found)","Seeded rejected promise."],"screenshotPath":"screenshots/desktop/_.png"},"viewport":"desktop","id":"runtime-55e4683a491d","createdAt":"2026-07-03T10:35:27.510Z"},{"title":"Network/API failures detected","category":"network","severity":"high","owner":"shared","route":"/","reproSteps":["Open /","Inspect network panel","Observe failed request(s)"],"suspectedCause":"Broken endpoint, missing asset, timeout, or contract mismatch","evidence":{"networkExcerpt":["500 GET http://127.0.0.1:4173/api/error"],"screenshotPath":"screenshots/desktop/_.png"},"viewport":"desktop","id":"network-5caeeb30249c","createdAt":"2026-07-03T10:35:27.510Z"},{"title":"UI regression signals detected","category":"ui","severity":"medium","owner":"frontend","route":"/","reproSteps":["Open / on viewport desktop","Inspect interactive controls and text layout","Observe overlaps, clipping, or inaccessible controls"],"suspectedCause":"Layout/CSS regression affecting interactive affordances","evidence":{"details":"{\"hiddenPrimaryActions\":[],\"offscreenInteractive\":[\"Offscreen Action\"],\"clippedTextNodes\":1,\"overlapPairs\":0}","consoleExcerpt":["hiddenPrimaryActions: 0","offscreenInteractive: 1","clippedTextNodes: 1","overlapPairs: 0"],"screenshotPath":"screenshots/desktop/_.png"},"viewport":"desktop","id":"ui-89ddee0063c2","createdAt":"2026-07-03T10:35:27.510Z"},{"title":"Performance regression over configured baseline","category":"performance","severity":"medium","owner":"frontend","route":"/slow.html","reproSteps":["Visit /slow.html","Measure route navigation duration","Compare against baseline"],"suspectedCause":"Blocking JS/CSS or expensive render path","evidence":{"details":"Observed 1850ms vs baseline 1000ms (+85.0%)","screenshotPath":"screenshots/desktop/_slow.html.png"},"viewport":"desktop","id":"performance-93aa7fa61cb0","createdAt":"2026-07-03T10:35:27.510Z"},{"title":"Functional navigation break detected","category":"functional","severity":"critical","owner":"frontend","route":"/login-loop.html","reproSteps":["Navigate to /login-loop.html","Observe route behavior","Notice blank screen or redirect loop"],"suspectedCause":"Auth/session redirect guard loop","evidence":{"details":"{\"blankScreenDetected\":false,\"redirectLoopDetected\":true}","screenshotPath":"screenshots/desktop/_login-loop.html.png"},"viewport":"desktop","id":"functional-06f73aa46036","createdAt":"2026-07-03T10:35:27.510Z"},{"title":"Runtime errors detected in browser console","category":"runtime","severity":"high","owner":"frontend","route":"/missing.html","reproSteps":["Open /missing.html on viewport desktop","Open browser devtools console","Observe uncaught errors/rejections"],"suspectedCause":"Unhandled exception or rejected promise in route script","evidence":{"consoleExcerpt":["Failed to load resource: the server responded with a status of 404 (Not Found)"],"screenshotPath":"screenshots/desktop/_missing.html.png"},"viewport":"desktop","id":"runtime-097adde91bc8","createdAt":"2026-07-03T10:35:27.510Z"},{"title":"Network/API failures detected","category":"network","severity":"high","owner":"shared","route":"/missing.html","reproSteps":["Open /missing.html","Inspect network panel","Observe failed request(s)"],"suspectedCause":"Broken endpoint, missing asset, timeout, or contract mismatch","evidence":{"networkExcerpt":["404 GET http://127.0.0.1:4173/missing.html"],"screenshotPath":"screenshots/desktop/_missing.html.png"},"viewport":"desktop","id":"network-b196c97f5ee1","createdAt":"2026-07-03T10:35:27.510Z"},{"title":"Runtime errors detected in browser console","category":"runtime","severity":"high","owner":"frontend","route":"/","reproSteps":["Open / on viewport mobile","Open browser devtools console","Observe uncaught errors/rejections"],"suspectedCause":"Unhandled exception or rejected promise in route script","evidence":{"consoleExcerpt":["Seeded runtime error from homepage.","Failed to load resource: the server responded with a status of 500 (Internal Server Error)","Seeded rejected promise."],"screenshotPath":"screenshots/mobile/_.png"},"viewport":"mobile","id":"runtime-7a13c4b02079","createdAt":"2026-07-03T10:35:27.510Z"},{"title":"Network/API failures detected","category":"network","severity":"high","owner":"shared","route":"/","reproSteps":["Open /","Inspect network panel","Observe failed request(s)"],"suspectedCause":"Broken endpoint, missing asset, timeout, or contract mismatch","evidence":{"networkExcerpt":["500 GET http://127.0.0.1:4173/api/error"],"screenshotPath":"screenshots/mobile/_.png"},"viewport":"mobile","id":"network-9c30e6d08a6c","createdAt":"2026-07-03T10:35:27.510Z"},{"title":"UI regression signals detected","category":"ui","severity":"medium","owner":"frontend","route":"/","reproSteps":["Open / on viewport mobile","Inspect interactive controls and text layout","Observe overlaps, clipping, or inaccessible controls"],"suspectedCause":"Layout/CSS regression affecting interactive affordances","evidence":{"details":"{\"hiddenPrimaryActions\":[],\"offscreenInteractive\":[\"Offscreen Action\"],\"clippedTextNodes\":1,\"overlapPairs\":0}","consoleExcerpt":["hiddenPrimaryActions: 0","offscreenInteractive: 1","clippedTextNodes: 1","overlapPairs: 0"],"screenshotPath":"screenshots/mobile/_.png"},"viewport":"mobile","id":"ui-fce9443913c1","createdAt":"2026-07-03T10:35:27.510Z"},{"title":"Performance regression over configured baseline","category":"performance","severity":"medium","owner":"frontend","route":"/slow.html","reproSteps":["Visit /slow.html","Measure route navigation duration","Compare against baseline"],"suspectedCause":"Blocking JS/CSS or expensive render path","evidence":{"details":"Observed 1841ms vs baseline 1000ms (+84.1%)","screenshotPath":"screenshots/mobile/_slow.html.png"},"viewport":"mobile","id":"performance-3d4617a25a50","createdAt":"2026-07-03T10:35:27.510Z"},{"title":"Functional navigation break detected","category":"functional","severity":"critical","owner":"frontend","route":"/login-loop.html","reproSteps":["Navigate to /login-loop.html","Observe route behavior","Notice blank screen or redirect loop"],"suspectedCause":"Auth/session redirect guard loop","evidence":{"details":"{\"blankScreenDetected\":false,\"redirectLoopDetected\":true}","screenshotPath":"screenshots/mobile/_login-loop.html.png"},"viewport":"mobile","id":"functional-0432b1b841c5","createdAt":"2026-07-03T10:35:27.510Z"},{"title":"Runtime errors detected in browser console","category":"runtime","severity":"high","owner":"frontend","route":"/missing.html","reproSteps":["Open /missing.html on viewport mobile","Open browser devtools console","Observe uncaught errors/rejections"],"suspectedCause":"Unhandled exception or rejected promise in route script","evidence":{"consoleExcerpt":["Failed to load resource: the server responded with a status of 404 (Not Found)"],"screenshotPath":"screenshots/mobile/_missing.html.png"},"viewport":"mobile","id":"runtime-234ab4ddbabc","createdAt":"2026-07-03T10:35:27.510Z"},{"title":"Network/API failures detected","category":"network","severity":"high","owner":"shared","route":"/missing.html","reproSteps":["Open /missing.html","Inspect network panel","Observe failed request(s)"],"suspectedCause":"Broken endpoint, missing asset, timeout, or contract mismatch","evidence":{"networkExcerpt":["404 GET http://127.0.0.1:4173/missing.html"],"screenshotPath":"screenshots/mobile/_missing.html.png"},"viewport":"mobile","id":"network-0fc2a2e113f5","createdAt":"2026-07-03T10:35:27.510Z"},{"id":"journey-broken-submit-flow","title":"Journey failed: broken-submit-flow","category":"functional","severity":"critical","owner":"frontend","route":"http://127.0.0.1:4173/","reproSteps":["Run journey 'broken-submit-flow' from config","Execute the listed steps in order","Observe failure at current step"],"suspectedCause":"page.click: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('#submit-btn')\u001b[22m\n\u001b[2m    - locator resolved to <button type=\"button\" id=\"submit-btn\">Submit</button>\u001b[22m\n\u001b[2m  - attempting click action\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is visible, enabled and stable\u001b[22m\n\u001b[2m      - scrolling into view if needed\u001b[22m\n\u001b[2m      - done scrolling\u001b[22m\n\u001b[2m      - <div class=\"overlap-b\"></div> intercepts pointer events\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m    - waiting 20ms\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is visible, enabled and stable\u001b[22m\n\u001b[2m      - scrolling into view if needed\u001b[22m\n\u001b[2m      - done scrolling\u001b[22m\n\u001b[2m      - <div class=\"overlap-b\"></div> intercepts pointer events\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m      - waiting 100ms\u001b[22m\n\u001b[2m    55 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m       - element is visible, enabled and stable\u001b[22m\n\u001b[2m       - scrolling into view if needed\u001b[22m\n\u001b[2m       - done scrolling\u001b[22m\n\u001b[2m       - <div class=\"overlap-b\"></div> intercepts pointer events\u001b[22m\n\u001b[2m     - retrying click action\u001b[22m\n\u001b[2m       - waiting 500ms\u001b[22m\n","evidence":{"details":"page.click: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('#submit-btn')\u001b[22m\n\u001b[2m    - locator resolved to <button type=\"button\" id=\"submit-btn\">Submit</button>\u001b[22m\n\u001b[2m  - attempting click action\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is visible, enabled and stable\u001b[22m\n\u001b[2m      - scrolling into view if needed\u001b[22m\n\u001b[2m      - done scrolling\u001b[22m\n\u001b[2m      - <div class=\"overlap-b\"></div> intercepts pointer events\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m    - waiting 20ms\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is visible, enabled and stable\u001b[22m\n\u001b[2m      - scrolling into view if needed\u001b[22m\n\u001b[2m      - done scrolling\u001b[22m\n\u001b[2m      - <div class=\"overlap-b\"></div> intercepts pointer events\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m      - waiting 100ms\u001b[22m\n\u001b[2m    55 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m       - element is visible, enabled and stable\u001b[22m\n\u001b[2m       - scrolling into view if needed\u001b[22m\n\u001b[2m       - done scrolling\u001b[22m\n\u001b[2m       - <div class=\"overlap-b\"></div> intercepts pointer events\u001b[22m\n\u001b[2m     - retrying click action\u001b[22m\n\u001b[2m       - waiting 500ms\u001b[22m\n\n    at runStep (/Users/Nishant.Boro/Downloads/bug-hunter/src/scanner/journeyRunner.ts:19:18)\n    at runScriptedJourneys (/Users/Nishant.Boro/Downloads/bug-hunter/src/scanner/journeyRunner.ts:45:17)\n    at runBugHunter (/Users/Nishant.Boro/Downloads/bug-hunter/src/run.ts:36:27)\n    at main (/Users/Nishant.Boro/Downloads/bug-hunter/src/pilot.ts:48:20)","screenshotPath":"screenshots/desktop/http_127.0.0.1_4173_.png"},"createdAt":"2026-07-03T10:35:58.092Z"}],"telemetry":[{"route":"/","viewport":"desktop","urlVisited":"http://127.0.0.1:4173/","startedAt":"2026-07-03T10:35:21.779Z","endedAt":"2026-07-03T10:35:22.314Z","durationMs":66,"consoleErrors":["Seeded runtime error from homepage.","Failed to load resource: the server responded with a status of 500 (Internal Server Error)","Failed to load resource: the server responded with a status of 404 (Not Found)"],"pageErrors":["Seeded rejected promise."],"networkFailures":[],"httpFailures":["500 GET http://127.0.0.1:4173/api/error"],"redirectLoopDetected":false,"blankScreenDetected":false,"uiSignals":{"hiddenPrimaryActions":[],"offscreenInteractive":["Offscreen Action"],"clippedTextNodes":1,"overlapPairs":0}},{"route":"/slow.html","viewport":"desktop","urlVisited":"http://127.0.0.1:4173/slow.html","startedAt":"2026-07-03T10:35:22.424Z","endedAt":"2026-07-03T10:35:24.347Z","durationMs":1850,"consoleErrors":[],"pageErrors":[],"networkFailures":[],"httpFailures":[],"redirectLoopDetected":false,"blankScreenDetected":false,"uiSignals":{"hiddenPrimaryActions":[],"offscreenInteractive":[],"clippedTextNodes":0,"overlapPairs":0}},{"route":"/login-loop.html","viewport":"desktop","urlVisited":"http://127.0.0.1:4173/login-loop.html","startedAt":"2026-07-03T10:35:24.446Z","endedAt":"2026-07-03T10:35:24.629Z","durationMs":146,"consoleErrors":[],"pageErrors":[],"networkFailures":[],"httpFailures":[],"redirectLoopDetected":true,"blankScreenDetected":false,"uiSignals":{"hiddenPrimaryActions":[],"offscreenInteractive":[],"clippedTextNodes":0,"overlapPairs":0}},{"route":"/missing.html","viewport":"desktop","urlVisited":"http://127.0.0.1:4173/missing.html","startedAt":"2026-07-03T10:35:24.721Z","endedAt":"2026-07-03T10:35:24.821Z","durationMs":40,"consoleErrors":["Failed to load resource: the server responded with a status of 404 (Not Found)"],"pageErrors":[],"networkFailures":[],"httpFailures":["404 GET http://127.0.0.1:4173/missing.html"],"redirectLoopDetected":false,"blankScreenDetected":false,"uiSignals":{"hiddenPrimaryActions":[],"offscreenInteractive":[],"clippedTextNodes":0,"overlapPairs":0}},{"route":"/","viewport":"mobile","urlVisited":"http://127.0.0.1:4173/","startedAt":"2026-07-03T10:35:24.913Z","endedAt":"2026-07-03T10:35:25.009Z","durationMs":45,"consoleErrors":["Seeded runtime error from homepage.","Failed to load resource: the server responded with a status of 500 (Internal Server Error)"],"pageErrors":["Seeded rejected promise."],"networkFailures":[],"httpFailures":["500 GET http://127.0.0.1:4173/api/error"],"redirectLoopDetected":false,"blankScreenDetected":false,"uiSignals":{"hiddenPrimaryActions":[],"offscreenInteractive":["Offscreen Action"],"clippedTextNodes":1,"overlapPairs":0}},{"route":"/slow.html","viewport":"mobile","urlVisited":"http://127.0.0.1:4173/slow.html","startedAt":"2026-07-03T10:35:25.105Z","endedAt":"2026-07-03T10:35:26.989Z","durationMs":1841,"consoleErrors":[],"pageErrors":[],"networkFailures":[],"httpFailures":[],"redirectLoopDetected":false,"blankScreenDetected":false,"uiSignals":{"hiddenPrimaryActions":[],"offscreenInteractive":[],"clippedTextNodes":0,"overlapPairs":0}},{"route":"/login-loop.html","viewport":"mobile","urlVisited":"http://127.0.0.1:4173/login-loop.html","startedAt":"2026-07-03T10:35:27.076Z","endedAt":"2026-07-03T10:35:27.271Z","durationMs":147,"consoleErrors":[],"pageErrors":[],"networkFailures":[],"httpFailures":[],"redirectLoopDetected":true,"blankScreenDetected":false,"uiSignals":{"hiddenPrimaryActions":[],"offscreenInteractive":[],"clippedTextNodes":0,"overlapPairs":0}},{"route":"/missing.html","viewport":"mobile","urlVisited":"http://127.0.0.1:4173/missing.html","startedAt":"2026-07-03T10:35:27.367Z","endedAt":"2026-07-03T10:35:27.446Z","durationMs":38,"consoleErrors":["Failed to load resource: the server responded with a status of 404 (Not Found)"],"pageErrors":[],"networkFailures":[],"httpFailures":["404 GET http://127.0.0.1:4173/missing.html"],"redirectLoopDetected":false,"blankScreenDetected":false,"uiSignals":{"hiddenPrimaryActions":[],"offscreenInteractive":[],"clippedTextNodes":0,"overlapPairs":0}}]};
+    const findings = artifacts.findings || [];
+    const telemetry = artifacts.telemetry || [];
+
+    const state = { severity: "all", category: "all", route: "all", query: "", selectedId: "" };
+    const severityEl = document.getElementById("severity");
+    const categoryEl = document.getElementById("category");
+    const routeEl = document.getElementById("route");
+    const searchEl = document.getElementById("search");
+    const listEl = document.getElementById("findingsList");
+    const detailsEl = document.getElementById("details");
+    const summaryEl = document.getElementById("summaryCards");
+    const telemetryRowsEl = document.getElementById("telemetryRows");
+
+    function unique(values) { return [...new Set(values)].filter(Boolean).sort(); }
+    function optionMarkup(value, label) { return '<option value="' + value + '">' + label + '</option>'; }
+
+    function setupFilters() {
+      severityEl.innerHTML = optionMarkup("all", "All severities") + unique(findings.map(f => f.severity)).map(v => optionMarkup(v, v)).join("");
+      categoryEl.innerHTML = optionMarkup("all", "All categories") + unique(findings.map(f => f.category)).map(v => optionMarkup(v, v)).join("");
+      routeEl.innerHTML = optionMarkup("all", "All routes") + unique(findings.map(f => f.route)).map(v => optionMarkup(v, v)).join("");
+    }
+
+    function summaryCards() {
+      const counts = findings.reduce((acc, f) => { acc[f.severity] = (acc[f.severity] || 0) + 1; return acc; }, {});
+      const categories = findings.reduce((acc, f) => { acc[f.category] = (acc[f.category] || 0) + 1; return acc; }, {});
+      summaryEl.innerHTML = [
+        ['Total findings', findings.length],
+        ['Critical', counts.critical || 0],
+        ['High', counts.high || 0],
+        ['Medium', counts.medium || 0],
+        ['Low', counts.low || 0],
+        ['Categories hit', Object.keys(categories).length]
+      ].map(([k,v]) => '<div class="card"><div class="muted">' + k + '</div><div style="font-size:24px;font-weight:700;margin-top:4px;">' + v + '</div></div>').join("");
+    }
+
+    function filtered() {
+      return findings.filter((f) => {
+        if (state.severity !== "all" && f.severity !== state.severity) return false;
+        if (state.category !== "all" && f.category !== state.category) return false;
+        if (state.route !== "all" && f.route !== state.route) return false;
+        if (!state.query) return true;
+        const haystack = [f.title, f.suspectedCause || "", f.route, JSON.stringify(f.evidence || {})].join(" ").toLowerCase();
+        return haystack.includes(state.query);
+      });
+    }
+
+    function renderList() {
+      const rows = filtered();
+      if (!rows.length) {
+        listEl.innerHTML = '<div class="muted">No findings match current filters.</div>';
+        detailsEl.innerHTML = "Select a finding to inspect evidence.";
+        return;
+      }
+      if (!state.selectedId || !rows.some(r => r.id === state.selectedId)) {
+        state.selectedId = rows[0].id;
+      }
+      listEl.innerHTML = rows.map((f) => {
+        const active = f.id === state.selectedId ? "item active" : "item";
+        return '<div class="' + active + '" data-id="' + f.id + '"><div><span class="badge ' + f.severity + '">' + f.severity.toUpperCase() + '</span> <strong>' + f.title + '</strong></div><div class="muted" style="margin-top:6px;">' + f.category + " | " + f.route + " | " + f.owner + '</div></div>';
+      }).join("");
+
+      listEl.querySelectorAll(".item").forEach((el) => {
+        el.addEventListener("click", () => {
+          state.selectedId = el.getAttribute("data-id");
+          renderList();
+          renderDetails();
+        });
+      });
+      renderDetails();
+    }
+
+    function renderDetails() {
+      const finding = filtered().find((f) => f.id === state.selectedId);
+      if (!finding) {
+        detailsEl.innerHTML = "Select a finding to inspect evidence.";
+        return;
+      }
+      const repro = (finding.reproSteps || []).map((x) => "<li>" + x + "</li>").join("");
+      const consoleLines = (finding.evidence?.consoleExcerpt || []).map((x) => "<li>" + x + "</li>").join("");
+      const networkLines = (finding.evidence?.networkExcerpt || []).map((x) => "<li>" + x + "</li>").join("");
+      const screenshot = finding.evidence?.screenshotPath ? '<div class="kv"><div class="muted">Screenshot</div><img src="' + finding.evidence.screenshotPath + '" alt="screenshot evidence"/></div>' : "";
+      detailsEl.innerHTML = [
+        "<div><span class='badge " + finding.severity + "'>" + finding.severity.toUpperCase() + "</span></div>",
+        "<div class='kv'><strong>" + finding.title + "</strong></div>",
+        "<div class='kv'>Category: " + finding.category + "</div>",
+        "<div class='kv'>Route: " + finding.route + "</div>",
+        "<div class='kv'>Owner: " + finding.owner + "</div>",
+        "<div class='kv'>Repro steps<ul>" + repro + "</ul></div>",
+        finding.suspectedCause ? "<div class='kv'>Suspected cause: " + finding.suspectedCause + "</div>" : "",
+        finding.evidence?.details ? "<div class='kv'>Details: " + finding.evidence.details + "</div>" : "",
+        consoleLines ? "<div class='kv'>Console excerpt<ul>" + consoleLines + "</ul></div>" : "",
+        networkLines ? "<div class='kv'>Network excerpt<ul>" + networkLines + "</ul></div>" : "",
+        screenshot
+      ].join("");
+    }
+
+    function renderTelemetry() {
+      telemetryRowsEl.innerHTML = telemetry.map((t) => {
+        const networkCount = (t.networkFailures || []).length + (t.httpFailures || []).length;
+        return "<tr><td>" + t.route + "</td><td>" + t.viewport + "</td><td>" + t.durationMs + "</td><td>" + (t.consoleErrors || []).length + "</td><td>" + networkCount + "</td></tr>";
+      }).join("");
+    }
+
+    severityEl.addEventListener("change", () => { state.severity = severityEl.value; renderList(); });
+    categoryEl.addEventListener("change", () => { state.category = categoryEl.value; renderList(); });
+    routeEl.addEventListener("change", () => { state.route = routeEl.value; renderList(); });
+    searchEl.addEventListener("input", () => { state.query = searchEl.value.toLowerCase().trim(); renderList(); });
+
+    setupFilters();
+    summaryCards();
+    renderList();
+    renderTelemetry();
+  </script>
+</body>
+</html>

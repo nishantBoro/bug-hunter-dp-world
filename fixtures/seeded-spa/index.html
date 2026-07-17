@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Seeded Bug App</title>
+    <style>
+      body { font-family: Arial, sans-serif; margin: 24px; }
+      .row { display: flex; gap: 8px; width: 240px; }
+      .clip { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 90px; border: 1px solid #bbb; }
+      #offscreen-btn { position: absolute; left: -9999px; top: -9999px; }
+      #submit-btn { margin-top: 16px; }
+      .overlap-a { position: absolute; top: 120px; left: 20px; width: 180px; height: 60px; background: rgba(255, 0, 0, 0.2); }
+      .overlap-b { position: absolute; top: 140px; left: 80px; width: 180px; height: 60px; background: rgba(0, 0, 255, 0.2); }
+    </style>
+  </head>
+  <body>
+    <h1>Seeded Bug App</h1>
+    <p class="clip">This long sentence intentionally clips to simulate a UI bug.</p>
+    <div class="row">
+      <a id="broken-link" href="/missing.html">Broken link</a>
+      <a href="/slow.html">Slow route</a>
+      <a href="/login-loop.html">Login loop route</a>
+    </div>
+    <form id="broken-form">
+      <label for="email">Email</label>
+      <input id="email" type="email" />
+      <button id="submit-btn" type="button">Submit</button>
+    </form>
+    <button id="offscreen-btn">Offscreen Action</button>
+    <div class="overlap-a"></div>
+    <div class="overlap-b"></div>
+
+    <script>
+      console.error("Seeded runtime error from homepage.");
+      Promise.reject(new Error("Seeded rejected promise."));
+      fetch("/api/error").catch(() => {});
+      document.getElementById("submit-btn").addEventListener("click", () => {
+        fetch("/api/submit", { method: "POST" }).catch(() => {});
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Slow Route</title>
+  </head>
+  <body>
+    <h1>Slow Route</h1>
+    <p>This route intentionally blocks main thread to simulate regression.</p>
+    <script>
+      const start = Date.now();
+      while (Date.now() - start < 1800) {}
+      console.log("Slow route work complete.");
+    </script>
+  </body>
+</html>

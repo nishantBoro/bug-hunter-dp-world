@@ -1,0 +1,17 @@
+{
+  "baseUrl": "http://localhost:3000",
+  "outputDir": "./artifacts/ui-shipments",
+  "viewports": [
+    { "name": "desktop", "width": 1440, "height": 900 },
+    { "name": "mobile", "width": 390, "height": 844 }
+  ],
+  "routes": ["/v2/cr3/shipments", "/consolidations"],
+  "routeParams": {},
+  "journeys": [],
+  "performanceThresholdPercent": 20,
+  "performanceBaselinesMs": {
+    "/": 2000,
+    "/shipments": 2500,
+    "/consolidations": 2500
+  }
+}
